@@ -42,4 +42,4 @@ class Controller(object):
         
         #Braking?
         
-        return throttle, steer, brake
+        return throttle, brake, steer
