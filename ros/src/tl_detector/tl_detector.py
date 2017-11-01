@@ -10,6 +10,7 @@ from light_classification.tl_classifier import TLClassifier
 import tf
 import cv2
 import yaml
+import twod_tree
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -19,6 +20,7 @@ class TLDetector(object):
 
         self.pose = None
         self.waypoints = None
+        self.waypoints_tree = None
         self.camera_image = None
         self.lights = []
 
@@ -56,6 +58,15 @@ class TLDetector(object):
 
     def waypoints_cb(self, waypoints):
         self.waypoints = waypoints
+
+        items = []
+        for wp_index, wp in enumerate(self.waypoints.waypoints):
+            wp_x = wp.pose.pose.position.x
+            wp_y = wp.pose.pose.position.y
+            items.append(twod_tree.LabeledPoint(wp_index, (wp_x, wp_y)))
+
+        self.waypoint_tree = twod_tree.TwoDTree(items)
+
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
@@ -100,8 +111,12 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        #TODO implement
-        return 0
+
+        x = pose.position.x
+        y = pose.position.y
+        closest_waypoint_index = self.waypoint_tree.find_closest((x,y)).label
+        return closest_waypoint_index
+
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -135,7 +150,7 @@ class TLDetector(object):
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
-        if(self.pose):
+        if(self.pose and self.waypoint_tree):
             car_position = self.get_closest_waypoint(self.pose.pose)
 
         #TODO find the closest visible traffic light (if one exists)
@@ -143,7 +158,8 @@ class TLDetector(object):
         if light:
             state = self.get_light_state(light)
             return light_wp, state
-        self.waypoints = None
+        # I don't get it why the next line would be a good idea?
+        # self.waypoints = None
         return -1, TrafficLight.UNKNOWN
 
 if __name__ == '__main__':
