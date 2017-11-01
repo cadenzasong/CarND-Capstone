@@ -32,16 +32,52 @@ class WaypointUpdater(object):
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
+        rospy.Subscriber('/traffic_waypoint', int32, self.traffic_cb )
+	    rospy.Subscriber('/obstacle_waypoint', int32, self.obstacle_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
-
+	    self.current_pose = None
+	    self.waypoints = None
+        
         rospy.spin()
-
+  
+    def closest_wp (self,waypoints):
+	    #Measure the closest waypoint ahead of the car 
+        min_dist = 10000
+	    dist = 0
+            dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+            #Search in all waypoints
+            for i in range(0, LOOKHEAD_WPS):
+                if (waypoints[i].pose.pose.position.x > 0)
+                    #This value is in front of the car
+                    dist = dl(self.current_pose.position, waypoints[i].pose.pose.position)
+	        if (dist < min_dist):
+		        min_dist = dist
+                #Save the index of the closest point ahead of the car
+		        closest_indx=i
+	    return closest_indx
+    
+    def waypoints_cb(self, waypoints):
+        # TODO: Implement
+	    self.waypoints = waypoints.waypoints
+        #Check if the waypoints are received
+	    if (self.waypoints = None):
+            #Get the index of the closest waypoint in the waypoints
+		    closest_indx = closest_wp (self.current_pose,self.waypoints) 
+	    
+        #Create final_wp msg that has Lane type. Fill it and then publish it
+	    final_wp = Lane()
+        final_wp.header.frame_id = waypoints.header.frame_id
+        final_wp.header.stamp = rospy.get_rostime()
+        final_wp.waypoints = self.waypoints[closest_indx:closest_indx+LOOKAHEAD_WPS]
+        self.final_waypoints_pub.publish(final_wp)
+        pass
+    
     def pose_cb(self, msg):
         # TODO: Implement
+        self.current_pose = msg	
         pass
 
     def waypoints_cb(self, waypoints):
