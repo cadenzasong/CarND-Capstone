@@ -1,14 +1,13 @@
 import random
 import copy
 
-
 class LabeledPoint(object):
-    """
-    label: anything
-    point: (number, number)
-    """
-
     def __init__(self, label, point):
+        """
+        label: anything
+        point: (x, y)
+        """
+        
         self.label = label
         self.point = point
 
@@ -17,11 +16,11 @@ class LabeledPoint(object):
 
 
 class TwoDTree(object):
-    """
-    items: list of LabeledPoint's
-    """
-
     def __init__(self, items, depth=0):
+        """
+        items: list of LabeledPoint's
+        """
+
         self.axis = depth % 2
         self.left = None
         self.right = None

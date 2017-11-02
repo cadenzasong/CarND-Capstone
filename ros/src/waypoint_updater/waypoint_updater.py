@@ -44,8 +44,8 @@ class WaypointUpdater(object):
         
         rospy.spin()
   
-    def closest_wp (self,waypoints):
-        #Measure the closest waypoint ahead of the car 
+    def closest_wp (self, waypoints):
+        """#Measure the closest waypoint ahead of the car
         min_dist = 10000
         dist = 0
         dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
@@ -59,10 +59,11 @@ class WaypointUpdater(object):
                 min_dist = dist
                 #Save the index of the closest point ahead of the car
                 closest_indx=i
-        return closest_indx
+        return closest_indx"""
+        return 0
     
     def waypoints_cb(self, waypoints):
-        # TODO: Implement
+        """# TODO: Implement
         self.waypoints = waypoints.waypoints
         #Check if the waypoints are received
         if not self.waypoints:
@@ -74,7 +75,7 @@ class WaypointUpdater(object):
         final_wp.header.frame_id = waypoints.header.frame_id
         final_wp.header.stamp = rospy.get_rostime()
         final_wp.waypoints = self.waypoints[closest_indx:closest_indx+LOOKAHEAD_WPS]
-        self.final_waypoints_pub.publish(final_wp)
+        self.final_waypoints_pub.publish(final_wp)"""
         pass
     
     def pose_cb(self, msg):
