@@ -54,10 +54,11 @@ class WaypointUpdater(object):
             if (waypoints[i].pose.pose.position.x > 0):
                 #This value is in front of the car
                 dist = dl(self.current_pose.position, waypoints[i].pose.pose.position)
-        if (dist < min_dist):
-            min_dist = dist
-            #Save the index of the closest point ahead of the car
-            closest_indx=i
+            #Compare if the calculated distance is the closest distance
+            if (dist < min_dist):
+                min_dist = dist
+                #Save the index of the closest point ahead of the car
+                closest_indx=i
         return closest_indx
     
     def waypoints_cb(self, waypoints):
@@ -79,10 +80,6 @@ class WaypointUpdater(object):
     def pose_cb(self, msg):
         # TODO: Implement
         self.current_pose = msg
-        pass
-
-    def waypoints_cb(self, waypoints):
-        # TODO: Implement
         pass
 
     def traffic_cb(self, msg):
