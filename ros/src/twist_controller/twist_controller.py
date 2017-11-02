@@ -1,3 +1,5 @@
+from pid import PID
+from yaw_controller import YawController
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
@@ -21,7 +23,7 @@ class Controller(object):
         self.pidvelocity = PID(0,0,0)
         
         #Here i assigned min_speed to 1
-        self.controlsteering = YawController (wheel_base, steer_ratio, min_speed = 1 , max_lat_accel, max_steer_angle)
+        self.controlsteering = YawController(wheel_base, steer_ratio, ONE_MPH, max_lat_accel, max_steer_angle)
         pass
 
     def control(self, *args, **kwargs):
@@ -35,9 +37,7 @@ class Controller(object):
         dbw_statues = args[3]
         
         error_v = target_v - current_v
-        throttle = self.pidvelocity.step(0,0,0):
-        
-        
+        throttle = self.pidvelocity.step(0,0,0)
         steer = self.controlsteering.get_steering(target_v, target_phi, current_v)
         
         #Braking?

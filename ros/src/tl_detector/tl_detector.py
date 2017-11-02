@@ -81,17 +81,17 @@ class TLDetector(object):
 
         if self.waypoints != None:
             # Use the waypoint indices as some kind of coarse s coordinate along the track
-            if self.lights_wpi == []:  # only do this once as traffic lights don't usually move
+            if not self.lights_wpi:  # only do this once as traffic lights don't usually move
                 for light in self.lights:
                     x = light.pose.position.x
                     y = light.pose.position.y
-                    self.lights_wpi.append(self.waypoint_tree.find_closest((x,y)).label
+                    self.lights_wpi.append(self.waypoint_tree.find_closest((x,y)).label)
 
-            if self.stop_line_wpi == []:  # only do this once as stop lines don't usually move
+            if not self.stop_line_wpi:  # only do this once as stop lines don't usually move
                 for pos in self.stop_line_positions:
                     x = pos.x
                     y = pos.y
-                    self.stop_line_wpi.append(self.waypoint_tree.find_closest((x,y)).label
+                    self.stop_line_wpi.append(self.waypoint_tree.find_closest((x,y)).label)
 
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
