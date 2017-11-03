@@ -35,11 +35,20 @@ class Controller(object):
         target_phi = args[1]
         current_v = args[2]
         dbw_statues = args[3]
+        #another argument for the time.
+        sample_time = args[4]
         
         error_v = target_v - current_v
-        throttle = self.pidvelocity.step(0,0,0)
+        throttle = self.pidvelocity.step(error_v,sample_time)
+        #We need to make sure throttle is within the range 0,1
+        
         steer = self.controlsteering.get_steering(target_v, target_phi, current_v)
         
-        #Braking?
+        #Braking happens when current_v is bigger than target_v "current_v > target_v" and throttle is zero
+        #This also includes when the target_v is very low (almost zero)
+        
+        
+        #Braking
+        
         
         return throttle, brake, steer
