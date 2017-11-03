@@ -66,6 +66,9 @@ class DBWNode(object):
         self.twist_cmd = None
         self.dbw_state = True
         
+        #Start measuring the time here
+        #self.sample_time_prev = rospy.rostime.get_time()
+        
         self.loop()
         
     def velocity_cb(self, velocity):
@@ -84,6 +87,10 @@ class DBWNode(object):
 
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
+        
+        #Get the sample_time and forward it to the class
+        #sample_time = rospy.rostime.get_time() - self.sample_time_prev
+
         while not rospy.is_shutdown():
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
             # You should only publish the control commands if dbw is enabled
@@ -92,7 +99,8 @@ class DBWNode(object):
             #throttle, brake, steering = self.controller.control(self.twist_cmd.twist.linear.x,
             #                                                    self.twist_cmd.twist.angular.z,
             #                                                    self.velocity.twist.linear.x,
-            #                                                    self.dbw_status)
+            #                                                    self.dbw_status,
+            #                                                    sample_time)
             #if (self.dbw_status == True):
             #   self.publish(throttle, brake, steer)
             rate.sleep()
