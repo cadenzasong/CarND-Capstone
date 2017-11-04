@@ -42,6 +42,7 @@ class WaypointUpdater(object):
 
         # TODO: Add other member variables you need below
         self.base_waypoints = None
+        self.base_waypoints_tree = None
 
         rospy.spin()
 
