@@ -107,16 +107,7 @@ class TLDetector(object):
 
         rospy.loginfo("Light %s %s", light_wp, state)
 
-        """
-        #image writing wip
-        image_dir = '/home/student/sim-images'
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
-        time_str = ("%.3f" % time.time()).replace('.','_')
-        if not os.path.isdir(image_dir):
-            os.makedirs(image_dir)
-        file_name = image_dir + '/'+time_str+'.jpg'
-        cv2.imwrite(file_name, cv_image)
-        rospy.loginfo("writing image: " + file_name)"""
+        #self.save_training_image(state)
 
         '''
         Publish upcoming red lights at camera frequency.
@@ -135,6 +126,17 @@ class TLDetector(object):
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
+
+    def save_training_image(self, state):
+        image_dir = '/home/student/sim-images/%d' % state
+        #image_dir = '/home/student/sim-images'
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        time_str = ("%.3f" % time.time()).replace('.','_')
+        if not os.path.isdir(image_dir):
+            os.makedirs(image_dir)
+        file_name = image_dir + '/'+time_str+'.jpg'
+        cv2.imwrite(file_name, cv_image)
+        rospy.loginfo("writing image: " + file_name)
 
     def wp_dist(self, ahead, astern):
         """Get the distance between two waypoint indices, handle overflow
