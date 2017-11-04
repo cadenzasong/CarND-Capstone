@@ -101,6 +101,7 @@ class DBWNode(object):
             #                                                    self.velocity.twist.linear.x,
             #                                                    self.dbw_status,
             #                                                    sample_time)
+            #self.sample_time_prev = rospy.rostime.get_time() 
             #if (self.dbw_status == True):
             #   self.publish(throttle, brake, steer)
             rate.sleep()
