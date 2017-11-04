@@ -7,6 +7,7 @@ from std_msgs.msg import Int32
 import sys
 
 import math
+import common_helpers.util as util
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -30,7 +31,7 @@ class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
-        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
@@ -45,20 +46,9 @@ class WaypointUpdater(object):
         rospy.spin()
 
     def closest_wp(self, current_pose):
-        # Measure the closest waypoint ahead of the car
-        min_dist = sys.float_info.max
-        dist = 0.0
-        closest_idx = 0
-        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
-        # Search in all waypoints
-        for i in range(0, len(self.base_waypoints)):
-            dist = dl(current_pose.position, self.base_waypoints[i].pose.pose.position)
-            # Compare if the calculated distance is the closest distance
-            if (dist < min_dist):
-                min_dist = dist
-                #Save the index of the closest point ahead of the car
-                closest_idx = i
-        return (closest_idx + 1)
+        """Measure the closest waypoint ahead of the car"""
+        closest_idx = self.base_waypoints_tree.find_closest(util.pose_to_point(current_pose)).label
+        return (closest_idx + 1) % len(self.base_waypoints)
 
     def pose_cb(self, msg):
         # rospy.logwarn("pose_cb")
@@ -66,14 +56,17 @@ class WaypointUpdater(object):
         final_wp = Lane()
         final_wp.header.frame_id = msg.header.frame_id
         final_wp.header.stamp = rospy.get_rostime()
-        final_wp.waypoints = self.base_waypoints[closest_idx:closest_idx + LOOKAHEAD_WPS]
+        final_wp.waypoints = util.circular_slice(self.base_waypoints, closest_idx, LOOKAHEAD_WPS)
         for i in range(LOOKAHEAD_WPS):
             self.set_waypoint_velocity(final_wp.waypoints, i, 10.0 * ONE_MPH)
+
+        rospy.logwarn("WaypointUpdater cwi %d", closest_idx)
         self.final_waypoints_pub.publish(final_wp)
 
     def waypoints_cb(self, waypoints):
         # rospy.logwarn("waypoints_cb")
         self.base_waypoints = waypoints.waypoints
+        self.base_waypoints_tree = util.waypoints_to_twod_tree(waypoints.waypoints)
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement

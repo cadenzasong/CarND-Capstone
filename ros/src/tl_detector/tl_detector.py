@@ -31,7 +31,7 @@ class TLDetector(object):
         self.lights = []
         self.lights_wpi = [] # Waypoint indices for traffix lights
 
-        sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         '''
@@ -69,14 +69,7 @@ class TLDetector(object):
 
     def waypoints_cb(self, waypoints):
         self.waypoints = waypoints
-
-        items = []
-        for wp_index, wp in enumerate(self.waypoints.waypoints):
-            wp_x = wp.pose.pose.position.x
-            wp_y = wp.pose.pose.position.y
-            items.append(twod_tree.LabeledPoint(wp_index, (wp_x, wp_y)))
-
-        self.waypoint_tree = twod_tree.TwoDTree(items)
+        self.waypoint_tree = util.waypoints_to_twod_tree(waypoints.waypoints)
 
 
     def traffic_cb(self, msg):
