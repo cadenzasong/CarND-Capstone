@@ -13,6 +13,9 @@ import yaml
 
 import common_helpers.twod_tree as twod_tree
 import common_helpers.util as util
+import os
+import os.path
+import time
 
 STATE_COUNT_THRESHOLD = 3
 # Approximate average distance between two waypoints in meter
@@ -41,8 +44,8 @@ class TLDetector(object):
         simulator. When testing on the vehicle, the color state will not be available. You'll need to
         rely on the position of the light and the camera image to predict it.
         '''
-        sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
-        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
+        sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb, queue_size=1)
+        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb, queue_size=1)
 
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
@@ -103,6 +106,17 @@ class TLDetector(object):
         light_wp, state = self.process_traffic_lights()
 
         rospy.loginfo("Light %s %s", light_wp, state)
+
+        """
+        #image writing wip
+        image_dir = '/home/student/sim-images'
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        time_str = ("%.3f" % time.time()).replace('.','_')
+        if not os.path.isdir(image_dir):
+            os.makedirs(image_dir)
+        file_name = image_dir + '/'+time_str+'.jpg'
+        cv2.imwrite(file_name, cv_image)
+        rospy.loginfo("writing image: " + file_name)"""
 
         '''
         Publish upcoming red lights at camera frequency.
