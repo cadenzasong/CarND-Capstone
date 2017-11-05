@@ -64,7 +64,7 @@ class DBWNode(object):
         
         self.velocity = None
         self.twist_cmd = None
-        self.dbw_state = True
+        self.dbw_enabled = False
         
         #Start measuring the time here
         #self.sample_time_prev = rospy.rostime.get_time()
@@ -73,15 +73,12 @@ class DBWNode(object):
         
     def velocity_cb(self, velocity):
         self.velocity = velocity
-        pass
 
     def twist_cb(self, twist):
         self.twist_cmd = twist
-        pass
 
     def dbw_en_cb(self, dbw_enabled):
-        self.dbw_state = dbw_enabled
-        pass
+        self.dbw_enabled = dbw_enabled
 
     #Twist_cmd includes the necessary velocity and heading that the car should reach. 
 
@@ -95,15 +92,17 @@ class DBWNode(object):
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
             # You should only publish the control commands if dbw is enabled
             
+            throttle, brake, steer = 1., 0., 0.
             #the values below are going to be the args of the control function in controller class
-            #throttle, brake, steering = self.controller.control(self.twist_cmd.twist.linear.x,
+            #throttle, brake, steer = self.controller.control(self.twist_cmd.twist.linear.x,
             #                                                    self.twist_cmd.twist.angular.z,
             #                                                    self.velocity.twist.linear.x,
             #                                                    self.dbw_status,
             #                                                    sample_time)
-            #self.sample_time_prev = rospy.rostime.get_time() 
-            #if (self.dbw_status == True):
-            #   self.publish(throttle, brake, steer)
+            #self.sample_time_prev = rospy.rostime.get_time()
+            if self.dbw_enabled:
+                # rospy.logwarn("DBW, publish throttle: %f, brake: %f, steer: %f" % (throttle, brake, steer))
+                self.publish(throttle, brake, steer)
             rate.sleep()
 
     def publish(self, throttle, brake, steer):

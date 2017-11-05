@@ -61,7 +61,7 @@ class WaypointUpdater(object):
         for i in range(LOOKAHEAD_WPS):
             self.set_waypoint_velocity(final_wp.waypoints, i, 10.0 * ONE_MPH)
 
-        rospy.logwarn("WaypointUpdater cwi %d", closest_idx)
+        # rospy.logwarn("WaypointUpdater cwi %d", closest_idx)
         self.final_waypoints_pub.publish(final_wp)
 
     def waypoints_cb(self, waypoints):
