@@ -53,16 +53,17 @@ class WaypointUpdater(object):
 
     def pose_cb(self, msg):
         # rospy.logwarn("pose_cb")
-        closest_idx = self.closest_wp(msg.pose)
-        final_wp = Lane()
-        final_wp.header.frame_id = msg.header.frame_id
-        final_wp.header.stamp = rospy.get_rostime()
-        final_wp.waypoints = util.circular_slice(self.base_waypoints, closest_idx, LOOKAHEAD_WPS)
-        for i in range(LOOKAHEAD_WPS):
-            self.set_waypoint_velocity(final_wp.waypoints, i, 10.0 * ONE_MPH)
+        if self.base_waypoints_tree:
+            closest_idx = self.closest_wp(msg.pose)
+            final_wp = Lane()
+            final_wp.header.frame_id = msg.header.frame_id
+            final_wp.header.stamp = rospy.get_rostime()
+            final_wp.waypoints = util.circular_slice(self.base_waypoints, closest_idx, LOOKAHEAD_WPS)
+            for i in range(LOOKAHEAD_WPS):
+                self.set_waypoint_velocity(final_wp.waypoints, i, 35.0 * ONE_MPH)
 
-        # rospy.logwarn("WaypointUpdater cwi %d", closest_idx)
-        self.final_waypoints_pub.publish(final_wp)
+            # rospy.logwarn("WaypointUpdater cwi %d", closest_idx)
+            self.final_waypoints_pub.publish(final_wp)
 
     def waypoints_cb(self, waypoints):
         # rospy.logwarn("waypoints_cb")

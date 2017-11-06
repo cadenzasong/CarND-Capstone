@@ -4,7 +4,6 @@ from yaw_controller import YawController
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
 
-
 class Controller(object):
     def __init__(self, *args, **kwargs):
         # TODO: Implement
@@ -19,35 +18,31 @@ class Controller(object):
         max_lat_accel = args[8]
         max_steer_angle = args[9]
         
-        #Needs TUNING
-        self.pidvelocity = PID(0,0,0)
-        
-        #Here i assigned min_speed to 1
+        # Needs TUNING
+        self.pidvelocity = PID(1.0, 1.0, 1.0, mn=0.0, mx=1.0) # cap throttle between 0 to 1
+
         self.controlsteering = YawController(wheel_base, steer_ratio, ONE_MPH, max_lat_accel, max_steer_angle)
 
-        #last_brake_torque = 0
-        #max_accel = 10 #m/s^2
-        #max_jerk = 10 #m/s^3
-        pass
+        # last_brake_torque = 0
+        # max_accel = 10 #m/s^2
+        # max_jerk = 10 #m/s^3
 
     def control(self, *args, **kwargs):
         # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
-        
-        #The arguments in the dbw_node are: twist vel, direction, current vel and the status of the dbw
-        #target_v = args[0]
-        #target_phi = args[1]
-        #current_v = args[2]
-        #dbw_statues = args[3]
-        #another argument for the time.
-        #sample_time = args[4]
-        
-        #error_v = target_v - current_v
-        #throttle = self.pidvelocity.step(error_v,sample_time)
-        #We need to make sure throttle is within the range 0,1
-        
-        #steer = self.controlsteering.get_steering(target_v, target_phi, current_v)
-        
+
+        throttle, brake, steer = 1., 0., 0.
+        target_linear_velocity = args[0]
+        target_angular_velocity = args[1]
+        current_linear_velocity = args[2]
+        dbw_enabled = args[3]
+        sample_time = args[4]
+
+        error_linear_velocity = target_linear_velocity - current_linear_velocity
+        throttle = self.pidvelocity.step(error_linear_velocity, sample_time)
+
+        steer = self.controlsteering.get_steering(target_linear_velocity, target_angular_velocity, current_linear_velocity)
+
         #Braking happens when current_v is bigger than target_v "current_v > target_v" and throttle is zero
         #This also includes when the target_v is very low (almost zero)
         
@@ -64,5 +59,4 @@ class Controller(object):
 
         #last_brake_torque = brake_torque
 
-
-        return 1., 0., 0.
+        return throttle, brake, steer
