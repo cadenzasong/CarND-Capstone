@@ -20,6 +20,9 @@ class Controller(object):
         
         # Needs TUNING
         self.pidvelocity = PID(1.0, 1.0, 1.0, mn=0.0, mx=1.0) # cap throttle between 0 to 1
+        
+        #For braking Needs TUNING
+        #self.pidbrake = PID(1.0, 1.0, 1.0, mn=0.0, mx=1.0) 
 
         self.controlsteering = YawController(wheel_base, steer_ratio, ONE_MPH, max_lat_accel, max_steer_angle)
 
@@ -62,6 +65,12 @@ class Controller(object):
         # if throttle < 0.:
         #            brake = -throttle
         #            throttle = 0.
+
+        #Since i am not able to run the simulator yet i would also recommend trying to use the error for braking 
+        #such as with the velocity.
+        #If current_linear_velocity > target_linear_velocity:
+        #    brake = self.pidbrake.step(-error_linear_velocity,sample_time)
+        #    throttle = 0
         #    if brake < brake_deadband:
-        #        brake = 0
+        #         brake = 0
         return throttle, brake, steer
