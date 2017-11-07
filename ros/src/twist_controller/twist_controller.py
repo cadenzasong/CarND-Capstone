@@ -53,10 +53,15 @@ class Controller(object):
             
         #    brake_torque = min(last_brake_torque + max_jerk * sample_time * vehicle_mass * wheel_radius,
         #                        max_brake_torque)
-            
+
         #else:
         #    brake_torque = max(0, last_brake_torque - max_jerk * sample_time * vehicle_mass * wheel_radius)
-
         #last_brake_torque = brake_torque
-
+        # We should also include applying brakes constantly when the light is red or there is an obstacle
+        # This is done by checking if the target_linear_velocity = 0
+        # if throttle < 0.:
+        #            brake = -throttle
+        #            throttle = 0.
+        #    if brake < brake_deadband:
+        #        brake = 0
         return throttle, brake, steer
