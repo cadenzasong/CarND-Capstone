@@ -22,6 +22,9 @@ from glob import glob
 from urllib.request import urlretrieve
 from tqdm import tqdm
 
+# Counter for red/yellow/green/no light seen in image
+debug_cnt = [0, 0, 0, 0]
+
 # Check TensorFlow Version
 assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), 'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
 print('TensorFlow Version: {}'.format(tf.__version__))
@@ -92,24 +95,31 @@ def gen_batch_function(data_dir, data_desc, image_shape):
         :param batch_size: Batch Size
         :return: Batches of training data
         """
+        global debug_cnt
 
         data_list = yaml.load(open(os.path.join(data_dir, data_desc), 'r'))
         image_path_gt_list = []
         for data in data_list:
             path = os.path.join(data_dir, data['path'])
             boxes = data['boxes']
+
             gt = 3 # No light=3, green=2, yellow=1, red light=0
             for box in boxes:
-                if box['label'][0:2] == 'Red':
+                if box['label'] == 'Red':
                     if gt != 3: continue # Skip images with different traffic lights
                     gt = 0
-                if box['label'][0:5] == 'Yellow':
+                elif box['label'] == 'Yellow':
                     if gt != 3: continue # Skip images with different traffic lights
                     gt = 1
-                if box['label'][0:4] == 'Green':
+                elif box['label'] == 'Green':
                     if gt != 3: continue # Skip images with different traffic lights
                     gt = 2
+                else:
+                    continue # Skip images with left / right traffic lights
+
             image_path_gt_list.append([path, gt])
+            debug_cnt[gt] += 1
+
 
         random.shuffle(image_path_gt_list)
         # Next line is needed to generate only complete batches
@@ -162,17 +172,20 @@ def layers(vgg_layer7_out, num_classes):
     print(vgg_flat.get_shape())
 
     # Dense Layer
-    dense1 = tf.layers.dense(vgg_flat, units=512, activation=tf.nn.relu)
+    dense1 = tf.layers.dense(vgg_flat, units=400, activation=tf.nn.relu,
+                             kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     print(dense1.get_shape())
-    dropout1 = tf.layers.dropout(dense1, rate=0.4)
+    dropout1 = tf.layers.dropout(dense1, rate=0.5)
     print(dropout1.get_shape())
-    dense2 = tf.layers.dense(dropout1, units=64, activation=tf.nn.relu)
+    dense2 = tf.layers.dense(dropout1, units=40, activation=tf.nn.relu,
+                             kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     print(dense2.get_shape())
-    dropout2 = tf.layers.dropout(dense2, rate=0.4)
+    dropout2 = tf.layers.dropout(dense2, rate=0.5)
     print(dropout2.get_shape())
 
     # Logits Layer
-    logits = tf.layers.dense(dropout2, units=num_classes)
+    logits = tf.layers.dense(dropout2, units=num_classes,
+                             kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     print(logits.get_shape())
 
     return logits
@@ -185,7 +198,7 @@ def optimize(logits, correct_label, learning_rate, num_classes):
     :param correct_label: TF Placeholder for the correct label image
     :param learning_rate: TF Placeholder for the learning rate
     :param num_classes: Number of classes to classify
-    :return: Tuple of (logits, train_op, cross_entropy_loss)
+    :return: Tuple of (train_op, cross_entropy_loss, accuracy_op)
     """
     one_hot = tf.one_hot(correct_label, num_classes)
     cross_entropy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=one_hot))
@@ -195,10 +208,10 @@ def optimize(logits, correct_label, learning_rate, num_classes):
     correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(one_hot, 1))
     accuracy_op = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-    return train_op, accuracy_op
+    return train_op, cross_entropy_loss, accuracy_op
 
 #==============================================================================
-def train_test_nn(sess, epochs, batch_size,
+def train_test_nn(sess, epochs, batch_size, cross_entropy_loss,
                   get_train_batch_fn, train_op, get_test_batch_fn, test_op,
                   input_image, correct_label, keep_prob, learning_rate):
     """
@@ -215,6 +228,7 @@ def train_test_nn(sess, epochs, batch_size,
     :param keep_prob: TF Placeholder for dropout keep probability
     :param learning_rate: TF Placeholder for learning rate
     """
+    global debug_cnt
     sess.run(tf.global_variables_initializer())
 
     print("Training...")
@@ -223,9 +237,14 @@ def train_test_nn(sess, epochs, batch_size,
         print("EPOCH {} ...".format(i+1))
 
         for image, label in get_train_batch_fn(batch_size):
-            sess.run(train_op, feed_dict={input_image: image, correct_label: label, learning_rate: 0.0005, keep_prob: 0.6})
-            print('-', end='', flush=True)
-        print()
+            _,loss = sess.run([train_op, cross_entropy_loss], feed_dict={input_image: image, correct_label: label, learning_rate: 0.0005, keep_prob: 0.6})
+            print("loss={}".format(loss))
+            #print('-', end='', flush=True)
+            #print()
+
+        print("Traffic light statistics on training\nred/yellow/green/no light")
+        print(debug_cnt)
+        debug_cnt = [0, 0, 0, 0]
 
         total_accuracy = 0
         batch_num = 0
@@ -237,6 +256,10 @@ def train_test_nn(sess, epochs, batch_size,
             print('=', end='', flush=True)
         print()
 
+        print("Traffic light statistics on testing\nred/yellow/green/no light")
+        print(debug_cnt)
+        debug_cnt = [0, 0, 0, 0]
+
         validation_accuracy = total_accuracy / batch_num
         print("Validation Accuracy = {:.3f}".format(validation_accuracy))
         print()
@@ -246,8 +269,8 @@ def run():
     num_classes = 4
     image_shape = (160, 576)
     data_dir = './data'
-    batch_size = 6
-    epoch_num = 2
+    batch_size = 4
+    epoch_num = 10
 
     # Download pretrained vgg model
     maybe_download_pretrained_vgg(data_dir)
@@ -265,10 +288,10 @@ def run():
 
         image_input, keep_prob, layer_7_out = load_vgg(sess, vgg_path)
         logits = layers(layer_7_out, num_classes)
-        train_op, accuracy_op = optimize(logits, correct_label, learning_rate, num_classes)
+        train_op, cross_entropy_loss, accuracy_op = optimize(logits, correct_label, learning_rate, num_classes)
 
         # Train+test NN using the train_test_nn function
-        train_test_nn(sess, epoch_num, batch_size,
+        train_test_nn(sess, epoch_num, batch_size, cross_entropy_loss,
                       get_train_batch_fn, train_op, get_test_batch_fn, accuracy_op,
                       image_input, correct_label, keep_prob, learning_rate)
 
