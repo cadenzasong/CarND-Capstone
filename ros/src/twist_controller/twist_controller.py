@@ -58,10 +58,10 @@ class Controller(object):
 
             brake = min(abs(self.last_brake_torque + self.max_jerk * sample_time * self.vehicle_mass * self.wheel_radius)
                         , abs(max_brake_torque))
-	        throttle = 0
+	    throttle = 0
             if brake < self.brake_deadband:
                 brake = 0
-	        rospy.loginfo("braking is %s N.m",brake)
+	    rospy.loginfo("braking is %s N.m",brake)
 	
 
         else:
