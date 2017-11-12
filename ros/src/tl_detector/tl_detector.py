@@ -16,21 +16,30 @@ import common_helpers.util as util
 import os
 import os.path
 import time
+import math
 
 STATE_COUNT_THRESHOLD = 3
 # Approximate average distance between two waypoints in meter
 WAYPOINT_DIST = 0.3
 # Maximal look ahead for traffic lights in meter
-LOOKAHEAD_DIST = 300
+LOOKAHEAD_DIST = 100
+CAMERA_HEIGHT = 1.0
+CAMERA_ANGLE_MAX = 0.225
+CAMERA_ANGLE_MIN = 0.0214
+TRAFFIC_LIGHT_VERT_OFFSET = 0.39
+TRAFFIC_LIGHT_HEIGHT = 1.77
+TRAFFIC_LIGHT_WIDTH = 0.78
 
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
 
         self.pose = None
+        self.yaw = None
         self.waypoints = None
         self.waypoint_tree = None
         self.camera_image = None
+        self.cropped_image = None
         self.lights = []
         self.lights_wpi = [] # Waypoint indices for traffix lights
 
@@ -69,6 +78,9 @@ class TLDetector(object):
 
     def pose_cb(self, msg):
         self.pose = msg
+        _, _, self.yaw = tf.transformations.euler_from_quaternion([msg.pose.orientation.x,
+                              msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w])
+        #rospy.loginfo("Car position %s %s, yaw angle %s", msg.pose.position.x, msg.pose.position.y, self.yaw)
 
     def waypoints_cb(self, waypoints):
         self.waypoints = waypoints
@@ -107,7 +119,8 @@ class TLDetector(object):
 
         rospy.loginfo("Light %s %s", light_wp, state)
 
-        #self.save_training_image(state)
+        if light_wp != -1:
+            self.save_training_image(state, self.cropped_image)
 
         '''
         Publish upcoming red lights at camera frequency.
@@ -127,16 +140,59 @@ class TLDetector(object):
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
 
-    def save_training_image(self, state):
-        image_dir = '/home/student/sim-images/%d' % state
+    def save_training_image(self, state, image):
+        image_dir = './train_img/%d' % state
         #image_dir = '/home/student/sim-images'
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         time_str = ("%.3f" % time.time()).replace('.','_')
         if not os.path.isdir(image_dir):
             os.makedirs(image_dir)
         file_name = image_dir + '/'+time_str+'.jpg'
-        cv2.imwrite(file_name, cv_image)
+        cv2.imwrite(file_name, image)
         rospy.loginfo("writing image: " + file_name)
+
+    def crop_region_of_interest(self, light):
+
+        #fx = self.config['camera_info']['focal_length_x']
+        #fy = self.config['camera_info']['focal_length_y']
+        # Not given for the simulator
+        fx = 2888
+        fy = 2888
+        image_width = self.config['camera_info']['image_width']
+        image_height = self.config['camera_info']['image_height']
+
+        # Convert traffic light position into vehice coordinates
+        dx = light.pose.pose.position.x - self.pose.pose.position.x
+        dy = light.pose.pose.position.y - self.pose.pose.position.y
+
+        tl_s = dx * math.cos(-self.yaw) - dy * math.sin(-self.yaw)
+        tl_d = dx * math.sin(-self.yaw) + dy * math.cos(-self.yaw)
+        tl_h = light.pose.pose.position.z
+
+        rospy.loginfo("Light position %s %s => %s %s, height %s",
+            light.pose.pose.position.x, light.pose.pose.position.y, tl_s, tl_d, tl_h)
+
+        # Calculate position and size in image using camera focal length
+        # Assume that camera height is 1 m and that camera is looking up a bit
+        roi_x = int(image_width / 2 - (tl_d + TRAFFIC_LIGHT_VERT_OFFSET) / tl_s * fx)
+        roi_y = int(image_height - (tl_h - CAMERA_HEIGHT - tl_s * math.sin(CAMERA_ANGLE_MIN)) / tl_s * fy)
+        roi_width = int(TRAFFIC_LIGHT_WIDTH / tl_s * fx)
+        roi_height = int(TRAFFIC_LIGHT_HEIGHT / tl_s * fy)
+
+        rospy.loginfo("Region of interest center x %s, center y %s, width %s height %s",
+            roi_x, roi_y, roi_width, roi_height)
+
+        # Crop image to region of interest
+        x1 = int(roi_x - roi_width / 2)
+        x2 = int(roi_x + roi_width / 2)
+        y1 = int(roi_y - roi_height / 2)
+        y2 = int(roi_y + roi_height / 2)
+
+        rospy.loginfo("Crop x1 %s, x2 %s, y1 %s y2 %s", x1, x2, y1, y2)
+
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        cv2.rectangle(cv_image, (x1, y1), (x2, y2), (255,0,0), 3)
+        self.cropped_image = cv_image
+        #self.cropped_image = cv_image[y1:y2, x1:x2]
 
     def wp_dist(self, ahead, astern):
         """Get the distance between two waypoint indices, handle overflow
@@ -167,7 +223,7 @@ class TLDetector(object):
         x = pose.position.x
         y = pose.position.y
         closest_waypoint_index = self.waypoint_tree.find_closest((x,y)).label
-        rospy.loginfo("TLDetector cwi %d", closest_waypoint_index)
+        #rospy.loginfo("TLDetector cwi %d", closest_waypoint_index)
         return closest_waypoint_index
 
 
@@ -235,6 +291,7 @@ class TLDetector(object):
                         stop_line_wp = wp
 
             if stop_line_wp:
+                self.crop_region_of_interest(light)
                 #TODO state = self.get_light_state(light)
                 #return stop_line_wp, state
                 return stop_line_wp, light.state
