@@ -81,17 +81,45 @@ class TLDetector(object):
         if not self.waypoint_tree:
             return
 
-        if self.lights_wpi and self.stop_line_wpi:
-            return
+        # construct self.lights_wpi and self.stop_line_wpi the first time
+        # 8 lights_wpi and 8 stop_line_wpi (ahead of lights)
+        #       light   stop_line
+        # [0]:  318     292
+        # [1]:  784     753
+        # [2]:  2095    2047
+        # [3]:  2625    2580
+        # [4]:  6322    6294
+        # [5]:  7036    7008
+        # [6]:  8565    8540
+        # [7]:  9773    9733
+        if not (self.lights_wpi and self.stop_line_wpi):
+            for light in self.lights:
+                x = light.pose.pose.position.x
+                y = light.pose.pose.position.y
+                self.lights_wpi.append(self.waypoint_tree.find_closest((x,y)).label)
 
-        for light in self.lights:
-            x = light.pose.pose.position.x
-            y = light.pose.pose.position.y
-            self.lights_wpi.append(self.waypoint_tree.find_closest((x,y)).label)
+            for pos in self.stop_line_positions:
+                self.stop_line_wpi.append(self.waypoint_tree.find_closest((pos[0], pos[1])).label)
 
-        for pos in self.stop_line_positions:
-            self.stop_line_wpi.append(self.waypoint_tree.find_closest((pos[0], pos[1])).label)
+#             rospy.loginfo('here, %d %d' % (len(self.lights_wpi), len(self.stop_line_wpi)))
+#             for i in range(len(self.lights_wpi)):
+#                 rospy.loginfo('[%d], %d %d' % (i, self.lights_wpi[i], self.stop_line_wpi[i]))
 
+        # bypass the classifier, publish the ground truth from /vehicle/traffic_lights
+        car_wpi = self.waypoint_tree.find_closest((self.pose.pose.position.x, self.pose.pose.position.y)).label
+        # rospy.loginfo('car_wpi: %d' % car_wpi)
+        startIdx = 0
+        if car_wpi < self.stop_line_wpi[-1]:
+            if car_wpi >= self.stop_line_wpi[startIdx]:
+                startIdx += 1
+
+        upcoming_red_light_wpi = -1 # no red light
+        for i in range(len(self.stop_line_wpi)):
+            if self.lights[startIdx % len(self.lights)].state == TrafficLight.RED:
+                upcoming_red_light_wpi = self.stop_line_wpi[startIdx % len(self.lights)]
+                break;
+        # rospy.loginfo('upcoming_red_light_wpi: %d' % upcoming_red_light_wpi)
+        # self.upcoming_red_light_pub.publish(Int32(upcoming_red_light_wpi))
 
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
@@ -101,6 +129,8 @@ class TLDetector(object):
             msg (Image): image from car-mounted camera
 
         """
+        if not self.waypoint_tree:
+            return
         self.has_image = True
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()

@@ -43,6 +43,8 @@ class WaypointUpdater(object):
         # TODO: Add other member variables you need below
         self.base_waypoints = None
         self.base_waypoints_tree = None
+        self.pose = None
+        self.red_light_wp = -1
 
         rospy.spin()
 
@@ -53,26 +55,52 @@ class WaypointUpdater(object):
 
     def pose_cb(self, msg):
         # rospy.logwarn("pose_cb")
+        self.pose = msg.pose
         if self.base_waypoints_tree:
-            closest_idx = self.closest_wp(msg.pose)
-            final_wp = Lane()
-            final_wp.header.frame_id = msg.header.frame_id
-            final_wp.header.stamp = rospy.get_rostime()
-            final_wp.waypoints = util.circular_slice(self.base_waypoints, closest_idx, LOOKAHEAD_WPS)
-            for i in range(LOOKAHEAD_WPS):
-                self.set_waypoint_velocity(final_wp.waypoints, i, 35.0 * ONE_MPH)
-
-            # rospy.logwarn("WaypointUpdater cwi %d", closest_idx)
-            self.final_waypoints_pub.publish(final_wp)
+            self.update_waypoints()
 
     def waypoints_cb(self, waypoints):
         # rospy.logwarn("waypoints_cb")
         self.base_waypoints = waypoints.waypoints
         self.base_waypoints_tree = util.waypoints_to_twod_tree(waypoints.waypoints)
 
+    def update_waypoints(self):
+        closest_idx = self.closest_wp(self.pose)
+        # rospy.logwarn('update_waypoints, closest_idx = %d, self.red_light_wp = %d' % (closest_idx, self.red_light_wp))
+        final_wp = Lane()
+        final_wp.header.stamp = rospy.get_rostime()
+        final_wp.waypoints = util.circular_slice(self.base_waypoints, closest_idx, LOOKAHEAD_WPS)
+        ignore_tl = False
+        if self.red_light_wp == -1:
+            # rospy.logwarn('no red light, ignore')
+            # ignore TL
+            for i in range(LOOKAHEAD_WPS):
+                self.set_waypoint_velocity(final_wp.waypoints, i, 35.0 * ONE_MPH)
+        else:
+            red_light_wp = self.red_light_wp
+            if red_light_wp < closest_idx:
+                red_light_wp += len(self.base_waypoints)
+            if (red_light_wp - closest_idx) > LOOKAHEAD_WPS:
+                # ignore TL
+                # rospy.logwarn('red light is too far ahead, ignore')
+                for i in range(LOOKAHEAD_WPS):
+                    self.set_waypoint_velocity(final_wp.waypoints, i, 35.0 * ONE_MPH)
+            else:
+                zero_velocity_idx = red_light_wp - closest_idx
+                # rospy.logwarn('zero_velocity_idx = %d', zero_velocity_idx)
+                for i in range(LOOKAHEAD_WPS):
+                    target_velocity = 0.0
+                    if i <= zero_velocity_idx:
+                        scale = (zero_velocity_idx - i) * 1.0 / zero_velocity_idx
+                        target_velocity = self.get_waypoint_velocity(final_wp.waypoints[i]) * scale
+                    # rospy.logwarn('[%d] target velocity = %f' % (i, target_velocity))
+                    self.set_waypoint_velocity(final_wp.waypoints, i, target_velocity)
+        self.final_waypoints_pub.publish(final_wp)
+
     def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+        self.red_light_wp = msg.data
+        if self.base_waypoints_tree:
+            self.update_waypoints()
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
