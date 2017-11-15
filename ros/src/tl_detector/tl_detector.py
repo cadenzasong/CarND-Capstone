@@ -64,7 +64,7 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
-
+        self.image_under_process = 0
         rospy.spin()
 
     def pose_cb(self, msg):
@@ -215,10 +215,14 @@ class TLDetector(object):
             self.prev_light_loc = None
             return False
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
-
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
+        light_color = TrafficLight.UNKNOWN
         #Get classification
-        return self.light_classifier.get_classification(cv_image)
+        if(self.image_under_process==0):
+            self.image_under_process=1
+            light_color = self.light_classifier.get_classification(cv_image)
+            self.image_under_process=0
+        return light_color
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -240,7 +244,7 @@ class TLDetector(object):
         min_dist = 1e42
         light = None
         light_wp = -1
-
+        tmp_ph = self.get_light_state(light)
         # TODO: Maybe we will need to find the first light whose _stop_line_ is ahead the car
         # Iterate over all traffic light waypoints
         for index, wp in enumerate(self.lights_wpi):
