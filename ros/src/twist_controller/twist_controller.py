@@ -1,4 +1,5 @@
 from pid import PID
+from lowpass import SimpleLowPassFilter
 from yaw_controller import YawController
 import rospy
 
@@ -21,13 +22,14 @@ class Controller(object):
         self.max_steer_angle = args[9]
         
         # Needs TUNING
-        self.pidvelocity = PID(1.0, 1.0, 1.0, mn=0.0, mx=1.0) # cap throttle between 0 to 1
+        self.pidvelocity = PID(0.001, 0.01, 0.0, mn=0.0, mx=1.0) # cap throttle between 0 to 1
         
         #For braking Needs TUNING
-        self.pidbrake = PID(1.0, 1.0, 1.0, mn=0.0, mx=1.0) 
+        self.pidbrake = PID(0.5, 20.0, 0.0, mn=0.0, mx=100.0)
 
         self.controlsteering = YawController(self.wheel_base, self.steer_ratio, ONE_MPH, self.max_lat_accel, self.max_steer_angle)
 
+        self.lowpasssteer = SimpleLowPassFilter(0.4)
         # last_brake_torque = 0
         self.max_accel = 10 #m/s^2
         self.max_jerk = 10 #m/s^3
@@ -44,29 +46,34 @@ class Controller(object):
         sample_time = args[4]
 
         error_linear_velocity = target_linear_velocity - current_linear_velocity
-        # rospy.loginfo("target_linear_velocity %f, current_linear_velocity %f" % (target_angular_velocity, current_linear_velocity))
-        throttle = self.pidvelocity.step(error_linear_velocity, sample_time)
-
+        # rospy.loginfo("Controller.control >>> target_linear_velocity %f, current_linear_velocity %f" % (target_linear_velocity, current_linear_velocity))
         steer = self.controlsteering.get_steering(target_linear_velocity, target_angular_velocity, current_linear_velocity)
+        steer = self.lowpasssteer.filt(steer)
+
+        if current_linear_velocity < target_linear_velocity:
+            throttle = self.pidvelocity.step(error_linear_velocity, sample_time)
+            brake = 0.0
+        else:
+            brake = self.pidbrake.step(-error_linear_velocity, sample_time)
+            throttle = 0.0
 
         #Braking happens when current_v is bigger than target_v "current_v > target_v" and throttle is zero
         #This also includes when the target_v is very low (almost zero)
-        max_brake_torque = self.decel_limit * self.vehicle_mass * self.wheel_radius
-        
-        if current_linear_velocity > target_linear_velocity:
-
-            brake = min(abs(self.last_brake_torque + self.max_jerk * sample_time * self.vehicle_mass * self.wheel_radius)
-                        , abs(max_brake_torque))
-            throttle = 0
-            if brake < self.brake_deadband:
-                brake = 0
-	        # rospy.loginfo("braking is %s N.m", brake)
-        else:
-            brake = max(0, self.last_brake_torque - self.max_jerk * sample_time * self.vehicle_mass * self.wheel_radius)
-
-        #I reduced the last_brake_torque to 0.75 of the original braking tourque as this will yield to a smoother drive by
-        #maintaining the speed and reduce the braking error
-        self.last_brake_torque = brake*0.75
+        # max_brake_torque = self.decel_limit * self.vehicle_mass * self.wheel_radius
+#         if current_linear_velocity > target_linear_velocity:
+#
+#             brake = min(abs(self.last_brake_torque + self.max_jerk * sample_time * self.vehicle_mass * self.wheel_radius)
+#                         , abs(max_brake_torque))
+#             throttle = 0
+#             if brake < self.brake_deadband:
+#                 brake = 0
+# 	        # rospy.loginfo("braking is %s N.m", brake)
+#         else:
+#             brake = max(0, self.last_brake_torque - self.max_jerk * sample_time * self.vehicle_mass * self.wheel_radius)
+#
+#         #I reduced the last_brake_torque to 0.75 of the original braking tourque as this will yield to a smoother drive by
+#         #maintaining the speed and reduce the braking error
+#         self.last_brake_torque = brake*0.75
 
         '''We should also include applying brakes constantly when the light is red or there is an obstacle
         This is done by checking if the target_linear_velocity = 0
@@ -83,4 +90,5 @@ class Controller(object):
         if brake < self.brake_deadband:
             brake = 0'''
 
+        # rospy.loginfo("Controller.control <<< throttle %f, brake %f, steer %f" % (throttle, brake, steer))
         return throttle, brake, steer

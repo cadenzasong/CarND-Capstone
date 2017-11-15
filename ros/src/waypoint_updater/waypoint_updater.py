@@ -26,6 +26,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
 ONE_MPH = 0.44704
+TARGET_SPEED = 25.0 * ONE_MPH
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -66,34 +67,36 @@ class WaypointUpdater(object):
 
     def update_waypoints(self):
         closest_idx = self.closest_wp(self.pose)
-        # rospy.logwarn('update_waypoints, closest_idx = %d, self.red_light_wp = %d' % (closest_idx, self.red_light_wp))
+        #rospy.logwarn('update_waypoints, closest_idx = %d, self.red_light_wp = %d' % (closest_idx, self.red_light_wp))
         final_wp = Lane()
         final_wp.header.stamp = rospy.get_rostime()
         final_wp.waypoints = util.circular_slice(self.base_waypoints, closest_idx, LOOKAHEAD_WPS)
         ignore_tl = False
         if self.red_light_wp == -1:
-            # rospy.logwarn('no red light, ignore')
+            #rospy.logwarn('no red light, ignore')
             # ignore TL
             for i in range(LOOKAHEAD_WPS):
-                self.set_waypoint_velocity(final_wp.waypoints, i, 35.0 * ONE_MPH)
+                self.set_waypoint_velocity(final_wp.waypoints, i, TARGET_SPEED)
         else:
             red_light_wp = self.red_light_wp
             if red_light_wp < closest_idx:
                 red_light_wp += len(self.base_waypoints)
-            if (red_light_wp - closest_idx) > LOOKAHEAD_WPS:
+            if (red_light_wp - closest_idx) > 125:
                 # ignore TL
-                # rospy.logwarn('red light is too far ahead, ignore')
+                #rospy.logwarn('red light is too far ahead, ignore')
                 for i in range(LOOKAHEAD_WPS):
-                    self.set_waypoint_velocity(final_wp.waypoints, i, 35.0 * ONE_MPH)
+                    self.set_waypoint_velocity(final_wp.waypoints, i, TARGET_SPEED)
             else:
                 zero_velocity_idx = red_light_wp - closest_idx
-                # rospy.logwarn('zero_velocity_idx = %d', zero_velocity_idx)
+                current_velocity = min(TARGET_SPEED, self.get_waypoint_velocity(final_wp.waypoints[0]))
+                #rospy.logwarn('zero_velocity_idx = %d' % (zero_velocity_idx))
                 for i in range(LOOKAHEAD_WPS):
                     target_velocity = 0.0
-                    if i <= zero_velocity_idx:
-                        scale = (zero_velocity_idx - i) * 1.0 / zero_velocity_idx
-                        target_velocity = self.get_waypoint_velocity(final_wp.waypoints[i]) * scale
-                    # rospy.logwarn('[%d] target velocity = %f' % (i, target_velocity))
+                    if i < zero_velocity_idx and zero_velocity_idx - i >= 12:
+                        scale = 1.0 * (zero_velocity_idx - i) / zero_velocity_idx
+                        target_velocity = current_velocity * scale
+                        #if i < 10:
+                        #    rospy.logwarn('[%d] target velocity = %f' % (i, target_velocity))
                     self.set_waypoint_velocity(final_wp.waypoints, i, target_velocity)
         self.final_waypoints_pub.publish(final_wp)
 

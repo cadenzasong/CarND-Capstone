@@ -57,7 +57,8 @@ class TLDetector(object):
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         self.bridge = CvBridge()
-        self.light_classifier = TLClassifier()
+        self.light_classifier = None
+        # self.light_classifier = TLClassifier()
         self.listener = tf.TransformListener()
 
         self.state = TrafficLight.UNKNOWN
@@ -110,7 +111,7 @@ class TLDetector(object):
         # rospy.loginfo('car_wpi: %d' % car_wpi)
         startIdx = 0
         if car_wpi < self.stop_line_wpi[-1]:
-            if car_wpi >= self.stop_line_wpi[startIdx]:
+            while car_wpi >= self.stop_line_wpi[startIdx]:
                 startIdx += 1
 
         upcoming_red_light_wpi = -1 # no red light
@@ -119,7 +120,7 @@ class TLDetector(object):
                 upcoming_red_light_wpi = self.stop_line_wpi[startIdx % len(self.lights)]
                 break;
         # rospy.loginfo('upcoming_red_light_wpi: %d' % upcoming_red_light_wpi)
-        # self.upcoming_red_light_pub.publish(Int32(upcoming_red_light_wpi))
+        self.upcoming_red_light_pub.publish(Int32(upcoming_red_light_wpi))
 
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
@@ -135,7 +136,7 @@ class TLDetector(object):
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
 
-        rospy.loginfo("Light %s %s", light_wp, state)
+        # rospy.loginfo("Light %s %s", light_wp, state)
 
         #self.save_training_image(state)
 
@@ -197,7 +198,7 @@ class TLDetector(object):
         x = pose.position.x
         y = pose.position.y
         closest_waypoint_index = self.waypoint_tree.find_closest((x,y)).label
-        rospy.loginfo("TLDetector cwi %d", closest_waypoint_index)
+        # rospy.loginfo("TLDetector cwi %d", closest_waypoint_index)
         return closest_waypoint_index
 
 
@@ -244,7 +245,7 @@ class TLDetector(object):
         min_dist = 1e42
         light = None
         light_wp = -1
-        tmp_ph = self.get_light_state(light)
+        # tmp_ph = self.get_light_state(light)
         # TODO: Maybe we will need to find the first light whose _stop_line_ is ahead the car
         # Iterate over all traffic light waypoints
         for index, wp in enumerate(self.lights_wpi):

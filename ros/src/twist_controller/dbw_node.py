@@ -99,7 +99,7 @@ class DBWNode(object):
                                                                 sample_time)
             self.sample_time_prev = rospy.rostime.get_time()
             if self.dbw_enabled:
-                # rospy.logwarn("DBW, publish throttle: %f, brake: %f, steer: %f" % (throttle, brake, steer))
+                #rospy.logwarn("DBW, publish throttle: %f, brake: %f, steer: %f" % (throttle, brake, steer))
                 self.publish(throttle, brake, steer)
             rate.sleep()
 
