@@ -9,13 +9,14 @@ import scipy
 import cv2
 import time
 from scipy.misc import imsave
-
+import os
 
 def categorical_crossentropy_with_weights(y_true, y_pred):
     class_weights = tf.constant(np.array([1.,1.,0.001], dtype=np.float32))
     weighted_y_true = tf.multiply(y_true, class_weights)
     
     return K.categorical_crossentropy(weighted_y_true, y_pred)
+    
 def preprocess_im_correct(image_1,flipper,tc,bc,lc,rc):
     
     re_img = image_1[tc:image_1.shape[0]-bc,lc:image_1.shape[1]-rc,:]
@@ -37,12 +38,14 @@ def prepare_im_test(img):
 class TLClassifier(object):
     def __init__(self):
         #TODO load classifier
-        self.unet = load_model('.../weights/concise_weights.19.h5', custom_objects={'categorical_crossentropy_with_weights': categorical_crossentropy_with_weights})
+        self.unet = load_model('./../../../weights/concise_weights.19.h5', custom_objects={'categorical_crossentropy_with_weights': categorical_crossentropy_with_weights})
         self.unet._make_predict_function()
         self.graph_unet = tf.get_default_graph()
-        self.Resnet = ResNet50(weights='imagenet')
+        self.Resnet = load_model('./../../../weights/Resnet50_keras.h5')
         self.Resnet._make_predict_function()
         self.graph_Resnet = tf.get_default_graph()
+        self.light_color_dict = {'Red':TrafficLight.RED,'Green':TrafficLight.GREEN,'No light':TrafficLight.UNKNOWN}
+
         pass
     
     def return_preds(self,img):
@@ -79,24 +82,26 @@ class TLClassifier(object):
                     light_found = True
                     
         return best_rect,light_found    
-    def draw_traffic_light_box(self,img):
+    def detect_traffic_light_color(self,img):
     
         threshold = 0.95
         
         with self.graph_unet.as_default():
             pred_mask = self.unet.predict(img)
         
-        #pred_mask = self.unet.predict(img)
+
     
         pred_mask = np.reshape(pred_mask,(512,512,3))
         
         #Green mask
         green_mask = pred_mask[:,:,0]
+
         green_mask[green_mask<threshold] = 0.0
         green_mask[green_mask>=threshold] = 1.0
         
         #Red mask
         red_mask = pred_mask[:,:,1]
+        
         red_mask[red_mask<threshold] = 0.0
         red_mask[red_mask>=threshold] = 1.0
     
@@ -112,13 +117,10 @@ class TLClassifier(object):
         
         if(lf):
             if(green_tl>red_tl):
-                #print('Green')
                 light_color = 'Green'
             else:
                 light_color = 'Red'
-                #print('red')
         else:
-            #print('No light')
             light_color = 'No light'
     
         return light_color
@@ -132,11 +134,10 @@ class TLClassifier(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        start_time = time.time()
+        
         im_arr = np.asarray(image)
-        im_array = prepare_im_test(im_arr)
-        lc = self.draw_traffic_light_box(im_array)
-        end_time = time.time()
-        rospy.loginfo('Predicted Light Color: %s Time: %3f',lc,end_time-start_time)
-        #TODO implement light color prediction
-        return TrafficLight.UNKNOWN
+        im_arr = prepare_im_test(im_arr)
+        lc = self.detect_traffic_light_color(im_arr)
+
+        
+        return self.light_color_dict[lc]
