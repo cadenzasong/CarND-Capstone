@@ -63,7 +63,7 @@ class TLClassifier(object):
         img = img*255
         img = img.astype(np.uint8)
         ret,thresh = cv2.threshold(img,127,255,0)
-        contours,hierarchy = cv2.findContours(thresh, 1, 2)
+        _,contours,hierarchy = cv2.findContours(thresh, 1, 2)
         best_prob = 0.001
         best_rect = [0,0,0,0]
         light_found = False
