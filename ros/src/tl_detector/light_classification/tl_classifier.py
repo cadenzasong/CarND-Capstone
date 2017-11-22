@@ -3,7 +3,7 @@ from keras.models import Model,load_model
 import tensorflow as tf
 import numpy as np
 from keras import backend as K
-from keras.applications.resnet50 import ResNet50,preprocess_input
+from keras.applications.inception_v3 import preprocess_input
 import rospy
 import scipy
 import cv2
@@ -41,7 +41,7 @@ class TLClassifier(object):
         self.unet = load_model('./../../../weights/concise_weights.19.h5', custom_objects={'categorical_crossentropy_with_weights': categorical_crossentropy_with_weights})
         self.unet._make_predict_function()
         self.graph_unet = tf.get_default_graph()
-        self.Resnet = load_model('./../../../weights/Resnet50_keras.h5')
+        self.Resnet = load_model('./../../../weights/InceptionV3_keras.h5')
         self.Resnet._make_predict_function()
         self.graph_Resnet = tf.get_default_graph()
         self.light_color_dict = {'Red':TrafficLight.RED,'Green':TrafficLight.GREEN,'No light':TrafficLight.UNKNOWN}
@@ -64,7 +64,7 @@ class TLClassifier(object):
         img = img.astype(np.uint8)
         ret,thresh = cv2.threshold(img,127,255,0)
         _,contours,hierarchy = cv2.findContours(thresh, 1, 2)
-        best_prob = 0.001
+        best_prob = 0.1
         best_rect = [0,0,0,0]
         light_found = False
         for cnt in contours:
