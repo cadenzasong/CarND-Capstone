@@ -1,5 +1,5 @@
 Weights are larger than 25Mb, cannot upload on github. Weights can be dowloaded from here:
 
 concise_weights.19.h5:  https://drive.google.com/file/d/14V_PRbsCQhF2RZnfsLAzAmfP-JTcJMDs/view
-Resnet_weights: https://drive.google.com/file/d/16vM6ODhTwBpa8x-B0jJJyglJJIKb437V/view
+InceptionV3 weights: https://drive.google.com/open?id=1gc9qcmENJVqUqV73OOr-2y3q2ljoe-Cc
 
