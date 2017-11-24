@@ -3,23 +3,23 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 Project Members:
 
 1. Member 1 - Team Leader:
-Prithvi Nuthanakalva
+Prithvi Nuthanakalva,
 Prith189@gmail.com
 
 2. Member 2:
-Yuchao Song
+Yuchao Song,
 cadenzasong@me.com
 
 3. Member 3:
-Hadi Abu-Snineh
+Hadi Abu-Snineh,
 Hadi.abusnineh@gmail.com
 
 4. Member 4:
-Tamas Danyluk
+Tamas Danyluk,
 Tamas.danyluk2@gmail.com
 
 5. Member 5
-Thomas Kloeker
+Thomas Kloeker,
 carnd@softcomponens.de
 
 ### Native Installation
